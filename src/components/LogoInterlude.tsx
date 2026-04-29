@@ -24,10 +24,15 @@ export default function LogoInterlude() {
           // viewport — before it's visible enough to play. This decouples the
           // network fetch from the play() call so the decoder has data buffered
           // by the time we actually need to show the video.
-          // Without this, preload='auto' and play() fire simultaneously at 15%,
-          // forcing the browser to fetch + decode + render in one frame → spike.
+          // Without this, preload='auto' + play() fire simultaneously at 15%,
+          // forcing the browser to fetch + decode + render in one spike.
+          // IMPORTANT: setting video.preload = 'auto' dynamically does NOT cause
+          // the browser to start fetching — browsers only act on preload at parse
+          // time or when video.load() is called. video.load() re-runs the resource
+          // selection algorithm with the new preload value, triggering the fetch.
           if (e.intersectionRatio > 0 && video.preload !== 'auto' && current === 'pre') {
             video.preload = 'auto';
+            video.load(); // forces the browser to act on the updated preload hint
           }
 
           if (e.intersectionRatio >= 0.15 && (current === 'pre' || current === 'leaving')) {

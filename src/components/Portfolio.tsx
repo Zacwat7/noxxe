@@ -669,15 +669,24 @@ export default function Portfolio() {
     // 2. Snaps Lenis ONCE the instant the section arrives at the top — prevents
     //    Lenis's residual vertical momentum from carrying the page PAST the section
     //    while the wheel handler is already doing horizontal card navigation.
-    //    Without this snap, Lenis and horizontal scroll fight each other on entry.
+    //    WITHOUT this snap, Lenis and horizontal scroll fight each other on entry.
+    // 3. Snaps to the TRACK position, not window.scrollY. Snapping to window.scrollY
+    //    locks the viewport with the section header visible but the card metadata
+    //    text below the fold (header is ~266px tall; at section.top=80 the cards
+    //    start at 346px and metadata falls past the viewport bottom on most screens).
     const onPageScroll = () => {
       const atTop = section.getBoundingClientRect().top <= 80;
       if (atTop && !sectionAtTopRef.current) {
-        // Section just transitioned to "at top" — kill Lenis momentum once.
-        // scrollTo(current, {immediate:true}) updates Lenis's internal targetScroll
-        // atomically with the current DOM position, so no stale-position bounce-back.
         if (window.lenisInstance) {
-          window.lenisInstance.scrollTo(window.scrollY, { immediate: true });
+          // Target: track starts 96px from viewport top (72px nav + 24px gap).
+          // This ensures cards AND their metadata text are fully visible.
+          const trackTop = track.getBoundingClientRect().top;
+          const idealTarget = window.scrollY + trackTop - 96;
+          // Never scroll backward — if Lenis already went past ideal, stay put.
+          window.lenisInstance.scrollTo(
+            Math.max(window.scrollY, idealTarget),
+            { immediate: true },
+          );
         }
       }
       sectionAtTopRef.current = atTop;
