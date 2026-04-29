@@ -663,36 +663,23 @@ export default function Portfolio() {
       setHasScrolled(true);
     };
 
-    // Passive scroll listener that:
-    // 1. Caches sectionAtTop — keeps getBoundingClientRect() OUT of the onWheel
-    //    hot path (120+/sec on trackpad; each BcR forces a synchronous layout flush).
-    // 2. Snaps Lenis ONCE the instant the section arrives at the top — prevents
-    //    Lenis's residual vertical momentum from carrying the page PAST the section
-    //    while the wheel handler is already doing horizontal card navigation.
-    //    WITHOUT this snap, Lenis and horizontal scroll fight each other on entry.
-    // 3. Snaps to the TRACK position, not window.scrollY. Snapping to window.scrollY
-    //    locks the viewport with the section header visible but the card metadata
-    //    text below the fold (header is ~266px tall; at section.top=80 the cards
-    //    start at 346px and metadata falls past the viewport bottom on most screens).
+    // Read the section's viewport position fresh on each scroll tick.
+    // BcR in a scroll handler is safe: scroll events fire at most 60/sec via
+    // Lenis RAF, and reading BcR on a clean layout (no pending DOM writes in
+    // this handler) uses the cached value without forcing a recalculation.
+    // This also self-corrects for layout shifts caused by late-loading images
+    // or fonts above the section — a pre-calculated offset would go stale.
     const onPageScroll = () => {
-      const atTop = section.getBoundingClientRect().top <= 80;
+      const atTop = section.getBoundingClientRect().top <= 50;
       if (atTop && !sectionAtTopRef.current) {
-        if (window.lenisInstance) {
-          // Target: track starts 96px from viewport top (72px nav + 24px gap).
-          // This ensures cards AND their metadata text are fully visible.
-          const trackTop = track.getBoundingClientRect().top;
-          const idealTarget = window.scrollY + trackTop - 96;
-          // Never scroll backward — if Lenis already went past ideal, stay put.
-          window.lenisInstance.scrollTo(
-            Math.max(window.scrollY, idealTarget),
-            { immediate: true },
-          );
-        }
+        // Cancel any Lenis in-flight momentum so vertical + horizontal scroll
+        // don't fight each other at the moment the section locks in.
+        window.lenisInstance?.scrollTo(window.scrollY, { immediate: true });
       }
       sectionAtTopRef.current = atTop;
     };
     window.addEventListener('scroll', onPageScroll, { passive: true });
-    onPageScroll(); // initialise immediately so the ref is correct before first wheel
+    onPageScroll(); // seed the ref immediately
 
     // One-card-at-a-time wheel scroll — attached to the SECTION so the full
     // section area intercepts, not just the track div. Previously only the
@@ -718,6 +705,9 @@ export default function Portfolio() {
           // Block the event so Lenis doesn't scroll the page during the hold.
           e.preventDefault();
           e.stopPropagation();
+          // Lenis may use capture-phase listeners that fire before our section
+          // handler — cancel any in-flight animation so the page stays pinned.
+          window.lenisInstance?.scrollTo(window.scrollY, { immediate: true });
           if (!boundaryEscapeTimer.current) {
             boundaryEscapeTimer.current = window.setTimeout(() => {
               boundaryEscapeRef.current = true;
@@ -741,6 +731,9 @@ export default function Portfolio() {
       // CustomCursor uses a capture-phase listener so it still gets the event.
       e.preventDefault();
       e.stopPropagation();
+      // Cancel any Lenis animation in-flight — e.preventDefault() stops native
+      // scroll but Lenis drives its own RAF-based animation that ignores it.
+      window.lenisInstance?.scrollTo(window.scrollY, { immediate: true });
 
       if (scrollLockRef.current) return;
       scrollLockRef.current = true;

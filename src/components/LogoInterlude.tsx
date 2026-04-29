@@ -10,6 +10,20 @@ export default function LogoInterlude() {
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
+  // Mount-time preload on desktop — starts buffering the video immediately
+  // at page load, long before the user scrolls here. This completely decouples
+  // the network fetch + decode from the play() call: by the time the section
+  // enters the viewport the decoder already has data, so play() is instant
+  // with no spike.
+  // Mobile-gated: avoids burning cellular data on a decorative video.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    video.preload = 'auto';
+    video.load(); // re-runs resource selection algorithm with the updated hint
+  }, []);
+
   useEffect(() => {
     const section = sectionRef.current;
     const video   = videoRef.current;
@@ -19,21 +33,6 @@ export default function LogoInterlude() {
       (entries) => {
         entries.forEach((e) => {
           const current = phaseRef.current;
-
-          // Start fetching video data the moment the section FIRST enters the
-          // viewport — before it's visible enough to play. This decouples the
-          // network fetch from the play() call so the decoder has data buffered
-          // by the time we actually need to show the video.
-          // Without this, preload='auto' + play() fire simultaneously at 15%,
-          // forcing the browser to fetch + decode + render in one spike.
-          // IMPORTANT: setting video.preload = 'auto' dynamically does NOT cause
-          // the browser to start fetching — browsers only act on preload at parse
-          // time or when video.load() is called. video.load() re-runs the resource
-          // selection algorithm with the new preload value, triggering the fetch.
-          if (e.intersectionRatio > 0 && video.preload !== 'auto' && current === 'pre') {
-            video.preload = 'auto';
-            video.load(); // forces the browser to act on the updated preload hint
-          }
 
           if (e.intersectionRatio >= 0.15 && (current === 'pre' || current === 'leaving')) {
             setPhase('entering');
