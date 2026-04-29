@@ -775,7 +775,7 @@ export default function Portfolio() {
 
       {/* ── Header ── */}
       <div
-        className="max-w-[1600px] mx-auto px-7 md:px-10 lg:px-12 pt-28 md:pt-32 lg:pt-44 pb-8 md:pb-12 lg:pb-16"
+        className="max-w-[1600px] mx-auto px-7 md:px-10 lg:px-12 pt-20 md:pt-24 lg:pt-28 pb-8 md:pb-12 lg:pb-16"
         style={{ position: 'relative', zIndex: 3 }}
       >
         <div ref={headerRef} className="flex items-end justify-between gap-10 flex-wrap">

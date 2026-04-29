@@ -63,20 +63,23 @@ export default function LogoInterlude() {
     <section
       ref={sectionRef}
       className="relative w-full overflow-hidden"
-      style={{ background: '#0d0d0d', minHeight: '100svh' }}
+      style={{ background: '#0d0d0d', minHeight: '100svh', contain: 'layout paint' }}
     >
       {/* ── Ambient bloom ─────────────────────────────────────────────── */}
+      {/* Blur filters intentionally removed from all glow divs — each CSS
+          blur() forces a separate compositor rasterisation pass. The radial
+          gradients already produce a soft diffused look at these low opacities;
+          the visual difference is imperceptible but the GPU cost is eliminated. */}
       {/* Amber core glow — sits behind the logo, pulses at peak */}
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse 60% 48% at 50% 50%, rgba(196,164,114,0.38) 0%, rgba(196,164,114,0.12) 42%, transparent 68%)',
+            'radial-gradient(ellipse 70% 55% at 50% 50%, rgba(196,164,114,0.32) 0%, rgba(196,164,114,0.10) 50%, transparent 72%)',
           opacity: revealed ? 1 : 0,
           animation: revealed ? 'glow-pulse 800ms ease-out 1200ms 1 both' : 'none',
           transition: 'opacity 3000ms cubic-bezier(0.16,1,0.3,1) 300ms',
-          filter: 'blur(24px)',
         }}
       />
       {/* Wide outer haze — makes the center feel lit */}
@@ -85,10 +88,9 @@ export default function LogoInterlude() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse 90% 70% at 50% 50%, rgba(196,164,114,0.08) 0%, transparent 65%)',
+            'radial-gradient(ellipse 100% 80% at 50% 50%, rgba(196,164,114,0.07) 0%, transparent 68%)',
           opacity: revealed ? 1 : 0,
           transition: 'opacity 3600ms cubic-bezier(0.16,1,0.3,1) 500ms',
-          filter: 'blur(48px)',
         }}
       />
       {/* Electric accent — offset top-left */}
@@ -99,10 +101,9 @@ export default function LogoInterlude() {
           top: '-15%', left: '-8%',
           width: '65%', height: '65%',
           background:
-            'radial-gradient(ellipse at center, rgba(32,80,255,0.18) 0%, transparent 65%)',
+            'radial-gradient(ellipse at center, rgba(32,80,255,0.15) 0%, transparent 68%)',
           opacity: revealed ? 1 : 0,
           transition: 'opacity 3800ms cubic-bezier(0.16,1,0.3,1) 700ms',
-          filter: 'blur(70px)',
         }}
       />
       {/* Warm halo — bottom-right */}
@@ -113,10 +114,9 @@ export default function LogoInterlude() {
           bottom: '-12%', right: '-6%',
           width: '60%', height: '60%',
           background:
-            'radial-gradient(ellipse at center, rgba(196,164,114,0.20) 0%, transparent 65%)',
+            'radial-gradient(ellipse at center, rgba(196,164,114,0.17) 0%, transparent 68%)',
           opacity: revealed ? 1 : 0,
           transition: 'opacity 3800ms cubic-bezier(0.16,1,0.3,1) 900ms',
-          filter: 'blur(80px)',
         }}
       />
 
@@ -159,18 +159,18 @@ export default function LogoInterlude() {
           }}
         >
           {/* Ambient glow inside the wrapper — mirrors section-level glow so
-              screen-blending looks consistent across the entire section */}
+              screen-blending looks consistent across the entire section.
+              No filter:blur — would add a 6th compositor rasterisation pass. */}
           <div
             aria-hidden
             style={{
               position: 'absolute',
               inset: '-40%',
               background: [
-                'radial-gradient(ellipse 75% 55% at 50% 50%, rgba(196,164,114,0.42) 0%, rgba(196,164,114,0.12) 50%, transparent 72%)',
-                'radial-gradient(ellipse 55% 50% at 18% 5%, rgba(32,80,255,0.20) 0%, transparent 60%)',
-                'radial-gradient(ellipse 50% 45% at 82% 95%, rgba(196,164,114,0.18) 0%, transparent 60%)',
+                'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(196,164,114,0.36) 0%, rgba(196,164,114,0.10) 55%, transparent 75%)',
+                'radial-gradient(ellipse 60% 55% at 18% 5%, rgba(32,80,255,0.18) 0%, transparent 65%)',
+                'radial-gradient(ellipse 55% 50% at 82% 95%, rgba(196,164,114,0.15) 0%, transparent 65%)',
               ].join(', '),
-              filter: 'blur(44px)',
               pointerEvents: 'none',
             }}
           />
