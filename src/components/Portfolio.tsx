@@ -90,13 +90,13 @@ const projects: Project[] = [
 
 // ─── BrowserFrame ─────────────────────────────────────────────────────────────
 function BrowserFrame({ p, isActive }: { p: Project; isActive: boolean }) {
-  const [errored, setErrored] = useState(false);
+  const [imgFailed, setImgFailed]       = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Only play when this card is the active (centred) card.
-  // IntersectionObserver fires for adjacent cards (opacity 0.35) which was
-  // causing up to 4 simultaneous video decoders running — the single biggest
-  // source of lag in the Portfolio section.
+  // Only play when this card is the active (centred) card — prevents up to
+  // 4 simultaneous video decoders from adjacent visible-but-inactive cards.
+  // The static image is always the base layer so cards are never black.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -104,6 +104,7 @@ function BrowserFrame({ p, isActive }: { p: Project; isActive: boolean }) {
       video.play().catch(() => {});
     } else {
       video.pause();
+      setVideoPlaying(false);
     }
   }, [isActive]);
 
@@ -116,8 +117,7 @@ function BrowserFrame({ p, isActive }: { p: Project; isActive: boolean }) {
         boxShadow: 'inset 0 0 0 1px rgba(245,245,240,0.06)',
       }}
     >
-      {/* Browser chrome — solid bg, no backdrop-blur (each blur is a separate
-          compositor rasterisation pass; 4 cards × 1 backdrop-blur = 4 passes) */}
+      {/* Browser chrome — solid bg, no backdrop-blur */}
       <div
         className="absolute top-0 inset-x-0 h-7 z-10 flex items-center gap-1.5 px-3 border-b border-bone/8"
         style={{ background: 'rgba(16,16,16,0.97)' }}
@@ -134,30 +134,48 @@ function BrowserFrame({ p, isActive }: { p: Project; isActive: boolean }) {
       </div>
 
       <div className="absolute inset-0 top-7">
-        {p.video && !errored ? (
-          <video
-            ref={videoRef}
-            src={p.video}
-            loop
-            muted
-            playsInline
-            preload="none"
-            disablePictureInPicture
-            onError={() => setErrored(true)}
-            {...({ 'webkit-playsinline': 'true' } as any)}
-            className="portfolio-media w-full h-full object-cover object-top"
-            style={{ display: 'block', transform: 'translate3d(0,0,0)', backfaceVisibility: 'hidden' }}
-          />
-        ) : !errored ? (
-          <img
-            src={p.image}
-            alt={`${p.client} — ${p.title}`}
-            loading="lazy"
-            decoding="async"
-            onError={() => setErrored(true)}
-            className="portfolio-media w-full h-full object-cover object-top"
-            style={{ display: 'block' }}
-          />
+        {!imgFailed ? (
+          <div className="relative w-full h-full">
+            {/* Static image — always visible as the base layer. This ensures cards
+                are never black even before the video loads or while inactive.
+                Previously the image branch was unreachable because every project
+                has a `video` property, leaving inactive cards with preload="none"
+                + no play() = solid black rectangle. */}
+            <img
+              src={p.image}
+              alt={`${p.client} — ${p.title}`}
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgFailed(true)}
+              className="portfolio-media absolute inset-0 w-full h-full object-cover object-top"
+              style={{ display: 'block' }}
+            />
+            {/* Video — overlaid on the image, fades in once playing.
+                Only the active card ever calls play(); inactive cards stay
+                on the static image with zero video decoder overhead. */}
+            {p.video && (
+              <video
+                ref={videoRef}
+                src={p.video}
+                loop
+                muted
+                playsInline
+                preload="none"
+                disablePictureInPicture
+                onPlaying={() => setVideoPlaying(true)}
+                onPause={() => setVideoPlaying(false)}
+                {...({ 'webkit-playsinline': 'true' } as any)}
+                className="portfolio-media absolute inset-0 w-full h-full object-cover object-top"
+                style={{
+                  display: 'block',
+                  opacity: videoPlaying ? 1 : 0,
+                  transition: 'opacity 500ms ease',
+                  transform: 'translate3d(0,0,0)',
+                  backfaceVisibility: 'hidden',
+                }}
+              />
+            )}
+          </div>
         ) : (
           <div
             className="w-full h-full flex items-center justify-center relative overflow-hidden"
@@ -645,13 +663,28 @@ export default function Portfolio() {
       const delta = e.deltaY + e.deltaX;
       if (Math.abs(delta) < 5) return;
 
-      // Only capture when the section is properly positioned at the viewport
-      // top (≤ nav height + small buffer). If the section is still scrolling
-      // into view from below, pass the event to Lenis so vertical scroll
-      // continues uninterrupted — prevents the track jumping to card 2 while
-      // the user is still scrolling down to reach the section.
+      // Only capture once the section is truly at the viewport top.
+      // Previously 90px — too generous: horizontal scroll activated while the
+      // section was still arriving (89px off-screen), hijacking vertical scroll
+      // mid-animation and causing the "lag on entry" feel.
+      // 80px matches the nav bar height: section is considered "at top" once
+      // its top edge is within one nav-bar height of the viewport.
+      // Also lock Lenis on first capture so it doesn't overshoot past the
+      // section while the user is scrolling cards.
       const sectionTop = section.getBoundingClientRect().top;
-      if (sectionTop > 90) return;
+      if (sectionTop > 80) return;
+
+      // Freeze Lenis in place the moment horizontal scroll takes over so any
+      // ongoing smooth-scroll animation doesn't drift the page past the section.
+      // scrollTo(current, {immediate}) updates both DOM scroll and Lenis's
+      // internal targetScroll atomically — no stale-position scroll-back.
+      if (window.lenisInstance) {
+        const ly = window.lenisInstance as any;
+        // Only snap if Lenis is still animating (targetScroll ≠ scroll)
+        if (Math.abs((ly.targetScroll ?? ly.scroll ?? 0) - window.scrollY) > 2) {
+          window.lenisInstance.scrollTo(window.scrollY, { immediate: true });
+        }
+      }
 
       const dir = delta > 0 ? 1 : -1;
       const cur = activeIndexRef.current;
