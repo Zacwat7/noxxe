@@ -171,7 +171,16 @@ export default function LogoInterlude() {
             }}
           />
 
-          {/* Video — inverted ink → white logo; screen blend makes bg invisible */}
+          {/* Video — inverted ink → white logo.
+              mix-blend-mode:screen + CSS filter is the most expensive
+              compositor combination possible: the filter creates an isolated
+              stacking context that forces per-frame software compositing of
+              the blend every time the video draws a new frame.
+              Instead: invert+contrast turns the dark ink strokes white on a
+              pure-black background. Pure black (0,0,0) after invert+contrast
+              matches the section bg (#0d0d0d) closely enough to be invisible —
+              so we can drop mix-blend-mode entirely and let the GPU composite
+              a normal opaque layer instead of a blended one. */}
           <video
             ref={videoRef}
             className="w-full"
@@ -184,7 +193,6 @@ export default function LogoInterlude() {
             style={{
               display: 'block',
               position: 'relative',
-              mixBlendMode: 'screen',
               filter: 'invert(1) contrast(3.5) brightness(0.78)',
               // GPU layer promotion for smooth playback
               transform: 'translate3d(0,0,0)',

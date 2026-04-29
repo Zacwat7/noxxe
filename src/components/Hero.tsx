@@ -62,9 +62,10 @@ export default function Hero() {
           // viewer has plenty of time with the video alone before the type lands
           const vp = Math.min(1, p / 0.88);
           const t = vp * dur;
-          // 1-frame threshold at 60fps (~16ms @ typical 30fps video ≈ 0.033s).
-          // Skips redundant seeks on sub-frame scroll jitter.
-          if (Math.abs(video.currentTime - t) > 0.016) {
+          // 2-frame threshold at 30fps (0.033s). Skips redundant seeks on
+          // sub-frame scroll jitter — halves seek frequency vs 0.016 while
+          // keeping motion imperceptibly smooth at 30fps source material.
+          if (Math.abs(video.currentTime - t) > 0.033) {
             video.currentTime = t;
           }
 

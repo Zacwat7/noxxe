@@ -89,23 +89,23 @@ const projects: Project[] = [
 ];
 
 // ─── BrowserFrame ─────────────────────────────────────────────────────────────
-function BrowserFrame({ p }: { p: Project }) {
+function BrowserFrame({ p, isActive }: { p: Project; isActive: boolean }) {
   const [errored, setErrored] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Only play when this card is the active (centred) card.
+  // IntersectionObserver fires for adjacent cards (opacity 0.35) which was
+  // causing up to 4 simultaneous video decoders running — the single biggest
+  // source of lag in the Portfolio section.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) video.play().catch(() => {});
-        else video.pause();
-      },
-      { threshold: 0.1 },
-    );
-    io.observe(video);
-    return () => io.disconnect();
-  }, []);
+    if (isActive) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [isActive]);
 
   return (
     <div
@@ -116,10 +116,11 @@ function BrowserFrame({ p }: { p: Project }) {
         boxShadow: 'inset 0 0 0 1px rgba(245,245,240,0.06)',
       }}
     >
-      {/* Browser chrome */}
+      {/* Browser chrome — solid bg, no backdrop-blur (each blur is a separate
+          compositor rasterisation pass; 4 cards × 1 backdrop-blur = 4 passes) */}
       <div
-        className="absolute top-0 inset-x-0 h-7 z-10 flex items-center gap-1.5 px-3 bg-[#101010]/80 backdrop-blur-sm border-b border-bone/8"
-        style={{ isolation: 'isolate' }}
+        className="absolute top-0 inset-x-0 h-7 z-10 flex items-center gap-1.5 px-3 border-b border-bone/8"
+        style={{ background: 'rgba(16,16,16,0.97)' }}
       >
         <span className="w-2 h-2 rounded-full bg-bone/15" />
         <span className="w-2 h-2 rounded-full bg-bone/15" />
@@ -361,7 +362,7 @@ function Slide({
               transition: 'box-shadow 750ms cubic-bezier(0.23, 1, 0.32, 1)',
             }}
           >
-            <BrowserFrame p={p} />
+            <BrowserFrame p={p} isActive={isActive} />
 
             {/* Gradient bloom */}
             <div
@@ -412,7 +413,7 @@ function Slide({
               inset: '10px -10px -20px -10px',
               background: `rgba(${hexToRgb(p.fallback.accent)},0.14)`,
               borderRadius: 16,
-              filter: 'blur(28px)',
+              filter: 'blur(6px)',
               zIndex: -1,
               opacity: isActive ? 1 : 0,
               transform: isActive ? 'translateY(12px) scaleX(0.88)' : 'translateY(2px) scaleX(0.88)',
@@ -517,7 +518,7 @@ function Modal({ p, onClose }: { p: Project | null; onClose: () => void }) {
         style={{ animation: 'modalSlideUp 800ms cubic-bezier(0.16,1,0.3,1) both' }}
       >
         <div className="md:col-span-7 rounded-md overflow-hidden border border-bone/10">
-          <BrowserFrame p={p} />
+          <BrowserFrame p={p} isActive={true} />
         </div>
         <div className="md:col-span-5 flex flex-col justify-between">
           <div>
@@ -1069,7 +1070,7 @@ function MobileCard({ p, index, onOpen }: { p: Project; index: number; onOpen: (
       style={{ borderRadius: 8, overflow: 'hidden' }}
     >
       <div style={{ borderRadius: 8, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(245,245,240,0.07), 0 24px 60px rgba(0,0,0,0.45)' }}>
-        <BrowserFrame p={p} />
+        <BrowserFrame p={p} isActive={true} />
       </div>
       <div className="mt-5 flex items-baseline justify-between gap-6 text-bone">
         <div>
