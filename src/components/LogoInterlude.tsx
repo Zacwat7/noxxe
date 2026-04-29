@@ -183,40 +183,32 @@ export default function LogoInterlude() {
             }}
           />
 
-          {/* Video — inverted ink → white logo.
-              mix-blend-mode:screen + CSS filter is the most expensive
-              compositor combination possible: the filter creates an isolated
-              stacking context that forces per-frame software compositing of
-              the blend every time the video draws a new frame.
-              Instead: invert+contrast turns the dark ink strokes white on a
-              pure-black background. Pure black (0,0,0) after invert+contrast
-              matches the section bg (#0d0d0d) closely enough to be invisible —
-              so we can drop mix-blend-mode entirely and let the GPU composite
-              a normal opaque layer instead of a blended one. */}
-          {/* Filter lives on the video element itself, NOT a wrapper div.
-              Reason: video + filter + will-change:transform = single GPU shader pass.
-              A wrapper with its own transform + filter creates TWO nested compositor
-              layers — the browser has to composite child→parent AND apply the filter,
-              adding an extra pass per frame vs. the filter running inline as the
-              video's compositor layer is finalised. */}
-          <video
-            ref={videoRef}
-            className="w-full"
-            src="/videos/logo-paint.mp4"
-            muted
-            playsInline
-            preload="metadata"
-            disablePictureInPicture
-            {...({ 'webkit-playsinline': 'true' } as any)}
+          {/* Filter wrapper — invert+contrast turns dark ink strokes white on a
+              pure-black background so mix-blend-mode is unnecessary.
+              Filter is on the wrapper div, NOT the video element: applying CSS
+              filter directly to a GPU-composited <video> (translate3d promotes it)
+              causes iOS Safari to render the video blank. Wrapping isolates the
+              filter to the div's composited output, which iOS handles correctly. */}
+          <div
             style={{
-              display: 'block',
-              position: 'relative',
               filter: 'invert(1) contrast(2.8) brightness(0.78)',
               transform: 'translate3d(0,0,0)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
             }}
-          />
+          >
+            <video
+              ref={videoRef}
+              className="w-full"
+              src="/videos/logo-paint.mp4"
+              muted
+              playsInline
+              preload="metadata"
+              disablePictureInPicture
+              {...({ 'webkit-playsinline': 'true' } as any)}
+              style={{ display: 'block', position: 'relative' }}
+            />
+          </div>
 
           {/* Edge vignette — four narrow fades erase the video's hard
               rectangular boundary; the exact bg colour makes it seamless */}

@@ -149,18 +149,21 @@ export default function Hero() {
 
     const onReady = () => {
       buildTrigger();
-      if (isTouchDevice) {
-        // iOS Safari: play the video normally since scrubbing is broken
-        video.play().catch(() => {});
-      } else {
-        prime();
-      }
+      if (!isTouchDevice) prime();
     };
 
     if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
       onReady();
     } else {
       video.addEventListener('loadedmetadata', onReady, { once: true });
+    }
+
+    // iOS Safari deadlock fix: iOS won't preload video data without play() being
+    // called first, so loadedmetadata never fires — onReady never runs — play()
+    // never gets called. Break the cycle by calling play() immediately here,
+    // unconditionally. muted + playsInline HTML attrs make this always allowed.
+    if (isTouchDevice) {
+      video.play().catch(() => {});
     }
 
     return () => {
