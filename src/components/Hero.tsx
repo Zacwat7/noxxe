@@ -62,6 +62,19 @@ export default function Hero() {
       const dur = video.duration;
       if (!dur || !isFinite(dur)) return;
 
+      // Mobile: no scroll pinning or scrub — video autoplays and loops.
+      // Reveal all content immediately with a double-rAF so CSS transitions fire.
+      if (isTouchDevice) {
+        overlay.style.opacity = '0.65';
+        plate.style.opacity = '1';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          reveal(eyebrow.querySelectorAll('.line-mask'), true);
+          reveal(title.querySelectorAll('.line-mask'), true);
+          reveal(section.querySelectorAll('[data-blurb]'), true);
+        }));
+        return;
+      }
+
       const isMobile = window.innerWidth < 768;
 
       st = ScrollTrigger.create({
@@ -196,6 +209,7 @@ export default function Hero() {
           muted
           playsInline
           autoPlay={isTouch}
+          loop={isTouch}
           preload="auto"
           disablePictureInPicture
           {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
