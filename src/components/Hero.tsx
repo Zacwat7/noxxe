@@ -178,8 +178,10 @@ export default function Hero() {
       ref={sectionRef}
       className="relative w-full h-[100svh] overflow-hidden bg-ink"
     >
-      {/* Video container — landscape strip on mobile (no letterbox), full-bleed on desktop */}
-      <div className="hero-video-wrap">
+      {/* Video container — landscape strip on mobile (no letterbox), full-bleed on desktop.
+          GPU hint lives on the wrapper, NOT the video: translate3d + backface-visibility
+          directly on a <video> element causes iOS Safari to render the video blank. */}
+      <div className="hero-video-wrap" style={{ transform: 'translate3d(0,0,0)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' } as any}>
         <video
           ref={videoRef}
           className="w-full h-full object-cover"
@@ -189,11 +191,6 @@ export default function Hero() {
           preload="auto"
           disablePictureInPicture
           {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
-          style={{
-            transform: 'translate3d(0,0,0)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}
         />
         {/* Mobile-only: dissolve bottom edge into the dark section background */}
         <div
