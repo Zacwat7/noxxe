@@ -203,7 +203,14 @@ export default function Hero() {
           directly on a <video> element causes iOS Safari to render the video blank. */}
       <div className="hero-video-wrap" style={{ transform: 'translate3d(0,0,0)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' } as any}>
         <video
-          ref={videoRef}
+          ref={(el) => {
+            videoRef.current = el;
+            // React never renders `muted` as an HTML attribute (7-yr bug, still open in React 18).
+            // iOS Safari evaluates the `muted` attribute at element-creation time, before any JS
+            // runs, so the property-only path means iOS always sees an unmuted video and blocks
+            // autoplay. setAttribute forces the attribute into the DOM synchronously on mount.
+            if (el) el.setAttribute('muted', '');
+          }}
           className="w-full h-full object-cover"
           src="/videos/hero-scrub.mp4"
           muted

@@ -292,21 +292,13 @@ html { scrollbar-width: none; }
   overscroll-behavior-y: contain;
 }
 
-/* Hero video container — landscape strip on mobile, full-bleed on desktop */
+/* Hero video container — full-bleed on all breakpoints.
+   GPU hint lives on the wrapper, NOT the video: translate3d + backface-visibility
+   directly on <video> causes iOS Safari to render the video blank. */
 .hero-video-wrap {
   position: absolute;
-  top: clamp(56px, 8svh, 72px);
-  left: 0;
-  right: 0;
+  inset: 0;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
-}
-@media (min-width: 768px) {
-  .hero-video-wrap {
-    top: 0;
-    bottom: 0;
-    aspect-ratio: auto;
-  }
 }
 
 /* iOS scroll lock — prevents body scroll bleed when overflow:hidden */
