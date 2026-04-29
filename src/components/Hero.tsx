@@ -218,7 +218,11 @@ export default function Hero() {
           </div>
 
           <div ref={titleRef} className="relative">
-            <div data-line className="line-mask block" style={{ paddingBottom: '0.06em' }}>
+            {/* paddingBottom uses vw to track the display font (8.6vw) so
+                overflow:hidden never clips ascenders or descenders regardless
+                of viewport width. em would resolve against the 16px body
+                font-size, not the 46–152px display size. */}
+            <div data-line className="line-mask block" style={{ paddingBottom: 'clamp(4px, 0.7vw, 12px)' }}>
               <span
                 className="font-editorial text-bone block"
                 style={{
@@ -234,7 +238,8 @@ export default function Hero() {
                 Websites that
               </span>
             </div>
-            <div data-line className="line-mask block" style={{ paddingBottom: '0.18em' }}>
+            {/* Extra bottom room for the "g" descender in "get screenshotted." */}
+            <div data-line className="line-mask block" style={{ paddingBottom: 'clamp(12px, 2.4vw, 40px)' }}>
               <span
                 className="font-editorial text-bone block italic"
                 style={{
