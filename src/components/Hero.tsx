@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -11,6 +11,13 @@ export default function Hero() {
   const titleRef = useRef<HTMLDivElement>(null);
   const eyebrowRef = useRef<HTMLDivElement>(null);
   const plateRef = useRef<HTMLDivElement>(null);
+  // Evaluated synchronously on first render so the autoPlay prop is baked into
+  // the video element's initial HTML — iOS Safari checks the autoplay attribute
+  // at element creation, before any useEffect JS runs.
+  const [isTouch] = useState(() =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches
+  );
 
   useEffect(() => {
     const section = sectionRef.current!;
@@ -28,11 +35,11 @@ export default function Hero() {
 
     video.muted = true;
     video.playsInline = true;
-    // Reset immediately — browsers cache currentTime across refreshes.
-    // If the user had scrolled to the end of the hero and refreshed, the browser
-    // restores currentTime = duration (last frame). Clearing it here guarantees
-    // the video is at frame 0 on every page load before anything else runs.
-    video.currentTime = 0;
+    // Desktop only: browsers cache currentTime across refreshes so the video
+    // can restore to the last-scrubbed frame. On touch we skip this — setting
+    // currentTime on an unloaded video creates a pending seek that can cause
+    // the autoplay to abort with AbortError before the first frame appears.
+    if (!isTouchDevice) video.currentTime = 0;
 
     let st: ScrollTrigger | null = null;
 
@@ -188,6 +195,7 @@ export default function Hero() {
           src="/videos/hero-scrub.mp4"
           muted
           playsInline
+          autoPlay={isTouch}
           preload="auto"
           disablePictureInPicture
           {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
