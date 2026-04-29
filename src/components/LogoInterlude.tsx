@@ -19,10 +19,18 @@ export default function LogoInterlude() {
       (entries) => {
         entries.forEach((e) => {
           const current = phaseRef.current;
-          if (e.intersectionRatio >= 0.15 && (current === 'pre' || current === 'leaving')) {
-            // Upgrade preload to 'auto' so the browser fetches the full file
-            // before play() is called, reducing stutter on first reveal.
+
+          // Start fetching video data the moment the section FIRST enters the
+          // viewport — before it's visible enough to play. This decouples the
+          // network fetch from the play() call so the decoder has data buffered
+          // by the time we actually need to show the video.
+          // Without this, preload='auto' and play() fire simultaneously at 15%,
+          // forcing the browser to fetch + decode + render in one frame → spike.
+          if (e.intersectionRatio > 0 && video.preload !== 'auto' && current === 'pre') {
             video.preload = 'auto';
+          }
+
+          if (e.intersectionRatio >= 0.15 && (current === 'pre' || current === 'leaving')) {
             setPhase('entering');
             video.currentTime = 0;
             video.play().catch(() => {});
@@ -181,38 +189,31 @@ export default function LogoInterlude() {
               matches the section bg (#0d0d0d) closely enough to be invisible —
               so we can drop mix-blend-mode entirely and let the GPU composite
               a normal opaque layer instead of a blended one. */}
-          {/* CSS filter wrapper — moving the filter off the video element and onto
-              an isolated container prevents the filter from re-triggering a
-              software-compositing pass every time the video decodes a new frame.
-              contain:layout paint creates a stacking-context boundary that limits
-              the filter's GPU cost to this subtree only. */}
-          <div
+          {/* Filter lives on the video element itself, NOT a wrapper div.
+              Reason: video + filter + will-change:transform = single GPU shader pass.
+              A wrapper with its own transform + filter creates TWO nested compositor
+              layers — the browser has to composite child→parent AND apply the filter,
+              adding an extra pass per frame vs. the filter running inline as the
+              video's compositor layer is finalised. */}
+          <video
+            ref={videoRef}
+            className="w-full"
+            src="/videos/logo-paint.mp4"
+            muted
+            playsInline
+            preload="metadata"
+            disablePictureInPicture
+            {...({ 'webkit-playsinline': 'true' } as any)}
             style={{
+              display: 'block',
               position: 'relative',
-              width: '100%',
               filter: 'invert(1) contrast(2.8) brightness(0.78)',
-              contain: 'layout paint',
+              willChange: 'transform',
               transform: 'translate3d(0,0,0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
             }}
-          >
-            <video
-              ref={videoRef}
-              className="w-full"
-              src="/videos/logo-paint.mp4"
-              muted
-              playsInline
-              preload="metadata"
-              disablePictureInPicture
-              {...({ 'webkit-playsinline': 'true' } as any)}
-              style={{
-                display: 'block',
-                position: 'relative',
-                transform: 'translate3d(0,0,0)',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-              }}
-            />
-          </div>
+          />
 
           {/* Edge vignette — four narrow fades erase the video's hard
               rectangular boundary; the exact bg colour makes it seamless */}

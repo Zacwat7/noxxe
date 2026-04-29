@@ -663,13 +663,24 @@ export default function Portfolio() {
       setHasScrolled(true);
     };
 
-    // Passive scroll listener that caches whether the section is at the viewport
-    // top. This moves getBoundingClientRect() out of the onWheel hot path — the
-    // wheel handler fires 120+ times/sec on a trackpad, and each BcR call forces
-    // a synchronous layout flush costing ~1ms. The scroll listener fires much
-    // less frequently and runs passively, off the critical input path.
+    // Passive scroll listener that:
+    // 1. Caches sectionAtTop — keeps getBoundingClientRect() OUT of the onWheel
+    //    hot path (120+/sec on trackpad; each BcR forces a synchronous layout flush).
+    // 2. Snaps Lenis ONCE the instant the section arrives at the top — prevents
+    //    Lenis's residual vertical momentum from carrying the page PAST the section
+    //    while the wheel handler is already doing horizontal card navigation.
+    //    Without this snap, Lenis and horizontal scroll fight each other on entry.
     const onPageScroll = () => {
-      sectionAtTopRef.current = section.getBoundingClientRect().top <= 80;
+      const atTop = section.getBoundingClientRect().top <= 80;
+      if (atTop && !sectionAtTopRef.current) {
+        // Section just transitioned to "at top" — kill Lenis momentum once.
+        // scrollTo(current, {immediate:true}) updates Lenis's internal targetScroll
+        // atomically with the current DOM position, so no stale-position bounce-back.
+        if (window.lenisInstance) {
+          window.lenisInstance.scrollTo(window.scrollY, { immediate: true });
+        }
+      }
+      sectionAtTopRef.current = atTop;
     };
     window.addEventListener('scroll', onPageScroll, { passive: true });
     onPageScroll(); // initialise immediately so the ref is correct before first wheel
