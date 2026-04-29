@@ -202,25 +202,36 @@ export default function Hero() {
           GPU hint lives on the wrapper, NOT the video: translate3d + backface-visibility
           directly on a <video> element causes iOS Safari to render the video blank. */}
       <div className="hero-video-wrap" style={{ transform: 'translate3d(0,0,0)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' } as any}>
-        <video
-          ref={(el) => {
-            videoRef.current = el;
-            // React never renders `muted` as an HTML attribute (7-yr bug, still open in React 18).
-            // iOS Safari evaluates the `muted` attribute at element-creation time, before any JS
-            // runs, so the property-only path means iOS always sees an unmuted video and blocks
-            // autoplay. setAttribute forces the attribute into the DOM synchronously on mount.
-            if (el) el.setAttribute('muted', '');
-          }}
-          className="w-full h-full object-cover"
-          src="/videos/hero-scrub.mp4"
-          muted
-          playsInline
-          autoPlay={isTouch}
-          loop={isTouch}
-          preload="auto"
-          disablePictureInPicture
-          {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
-        />
+        {isTouch ? (
+          // dangerouslySetInnerHTML is the only reliable iOS fix. React's `muted` prop
+          // sets a JS property; iOS evaluates the `muted` HTML *attribute* when it parses
+          // innerHTML — before any JS property assignment can fire. Every previous
+          // approach (ref callback, setAttribute, useEffect) runs after iOS has already
+          // decided to block autoplay and show the play button.
+          <div
+            ref={(container) => {
+              if (container) {
+                const v = container.querySelector<HTMLVideoElement>('video');
+                if (v) videoRef.current = v;
+              }
+            }}
+            style={{ position: 'absolute', inset: 0 }}
+            dangerouslySetInnerHTML={{
+              __html: `<video autoplay muted loop playsinline preload="auto" webkit-playsinline="true" x5-playsinline="true" disablepictureinpicture src="/videos/hero-scrub.mp4" style="display:block;width:100%;height:100%;object-fit:cover"></video>`,
+            }}
+          />
+        ) : (
+          <video
+            ref={(el) => { videoRef.current = el; }}
+            className="w-full h-full object-cover"
+            src="/videos/hero-scrub.mp4"
+            muted
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            {...({ 'webkit-playsinline': 'true', 'x5-playsinline': 'true' } as any)}
+          />
+        )}
         {/* Mobile-only: dissolve bottom edge into the dark section background */}
         <div
           aria-hidden
