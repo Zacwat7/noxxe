@@ -212,7 +212,6 @@ export default function LogoInterlude() {
               display: 'block',
               position: 'relative',
               filter: 'invert(1) contrast(2.8) brightness(0.78)',
-              willChange: 'transform',
               transform: 'translate3d(0,0,0)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',

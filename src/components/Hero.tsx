@@ -21,6 +21,11 @@ export default function Hero() {
     const plate = plateRef.current!;
     if (!section || !video) return;
 
+    // iOS Safari cannot seek a non-playing video via currentTime — the browser
+    // won't buffer frames until play() is called. Detect touch devices and fall
+    // back to normal playback instead of scroll-scrubbing.
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
     video.muted = true;
     video.playsInline = true;
     // Reset immediately — browsers cache currentTime across refreshes.
@@ -63,15 +68,14 @@ export default function Hero() {
         onUpdate: (self: ScrollTrigger) => {
           const p = self.progress;
 
-          // VIDEO scrub — use first 88% of scroll for the camera move so the
-          // viewer has plenty of time with the video alone before the type lands
-          const vp = Math.min(1, p / 0.88);
-          const t = vp * dur;
-          // 2-frame threshold at 30fps (0.033s). Skips redundant seeks on
-          // sub-frame scroll jitter — halves seek frequency vs 0.016 while
-          // keeping motion imperceptibly smooth at 30fps source material.
-          if (Math.abs(video.currentTime - t) > 0.033) {
-            video.currentTime = t;
+          // VIDEO scrub — desktop only. iOS Safari won't buffer frames until
+          // play() is called, so currentTime seeks produce a black screen there.
+          if (!isTouchDevice) {
+            const vp = Math.min(1, p / 0.88);
+            const t = vp * dur;
+            if (Math.abs(video.currentTime - t) > 0.033) {
+              video.currentTime = t;
+            }
           }
 
           // Vignette deepens linearly — only write when value changes meaningfully
@@ -113,17 +117,13 @@ export default function Hero() {
           // may have cached incorrect positions during the 240% pinned scroll.
           ScrollTrigger.refresh();
         },
-        // Snap to final frame when user scrolls past the hero faster than the
-        // scrub (1.8s lag) can catch up. Without this the video may stay on an
-        // intermediate frame when the pin releases.
         onLeave: () => {
-          if (video.duration && isFinite(video.duration)) {
+          if (!isTouchDevice && video.duration && isFinite(video.duration)) {
             video.currentTime = video.duration;
           }
         },
-        // Snap to first frame if user scrolls back above the hero.
         onLeaveBack: () => {
-          video.currentTime = 0;
+          if (!isTouchDevice) video.currentTime = 0;
         },
       } as any);
 
@@ -149,7 +149,12 @@ export default function Hero() {
 
     const onReady = () => {
       buildTrigger();
-      prime(); // safe now — duration is known and trigger is set up
+      if (isTouchDevice) {
+        // iOS Safari: play the video normally since scrubbing is broken
+        video.play().catch(() => {});
+      } else {
+        prime();
+      }
     };
 
     if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
