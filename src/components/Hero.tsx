@@ -23,6 +23,11 @@ export default function Hero() {
 
     video.muted = true;
     video.playsInline = true;
+    // Reset immediately — browsers cache currentTime across refreshes.
+    // If the user had scrolled to the end of the hero and refreshed, the browser
+    // restores currentTime = duration (last frame). Clearing it here guarantees
+    // the video is at frame 0 on every page load before anything else runs.
+    video.currentTime = 0;
 
     let st: ScrollTrigger | null = null;
 
@@ -126,6 +131,7 @@ export default function Hero() {
     // before the first ScrollTrigger seek.
     const prime = () => {
       if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+      video.currentTime = 0; // Guarantee prime starts from frame 0
       video.playbackRate = 4;
       const p = video.play();
       if (p && p.catch) p.catch(() => {});
