@@ -55,7 +55,7 @@ export default function Hero() {
         anticipatePin: 1,
         scrub: 1.8, // higher = smoother, more cinematic feel
         invalidateOnRefresh: true,
-        onUpdate: (self) => {
+        onUpdate: (self: ScrollTrigger) => {
           const p = self.progress;
 
           // VIDEO scrub — use first 88% of scroll for the camera move so the
@@ -100,13 +100,14 @@ export default function Hero() {
             reveal(section.querySelectorAll('[data-blurb]'), wantBlurb);
           }
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onComplete: () => {
           // After hero pin completes, refresh ScrollTrigger to recalculate all
           // trigger positions. This fixes downstream IntersectionObservers that
           // may have cached incorrect positions during the 240% pinned scroll.
           ScrollTrigger.refresh();
         },
-      });
+      } as any);
 
       ScrollTrigger.refresh();
     };

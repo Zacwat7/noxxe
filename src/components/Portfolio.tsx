@@ -585,11 +585,11 @@ export default function Portfolio() {
   const headerRef = useRef<HTMLDivElement>(null);
   const activeIndexRef = useRef(0);
   const scrollLockRef = useRef(false);
-  const scrollLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollLockTimer = useRef<number | null>(null);
   // Boundary escape resistance — user must hold the scroll direction for 600ms
   // before the page scrolls past the first/last card.
   const boundaryEscapeRef = useRef(false);
-  const boundaryEscapeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundaryEscapeTimer = useRef<number | null>(null);
 
   useEffect(() => { activeIndexRef.current = activeIndex; }, [activeIndex]);
 
