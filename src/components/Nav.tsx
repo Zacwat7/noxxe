@@ -7,14 +7,19 @@ export default function Nav() {
   const { openContact } = useContactOverlay();
   const { openTestimonials } = useTestimonialsOverlay();
   const { navigateTo } = useNavTransition();
-  const [scrolled, setScrolled] = useState(false);
   const [easter, setEaster] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
 
+  // Direct DOM class toggle — zero React re-renders on scroll.
+  // Previously used setScrolled(state) which scheduled a reconcile + inline style
+  // recalc on every scroll event. Now the class `.nav-scrolled` is toggled directly
+  // on the element; all appearance changes live in index.css.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    onScroll();
+    const nav = ref.current;
+    if (!nav) return;
+    const onScroll = () => nav.classList.toggle('nav-scrolled', window.scrollY > 60);
+    onScroll(); // initialise immediately
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -53,14 +58,7 @@ export default function Nav() {
     <>
       <nav
         ref={ref}
-        className="fixed top-0 left-0 right-0 z-50"
-        style={{
-          padding: scrolled ? '14px 28px' : '22px 28px',
-          backdropFilter: scrolled ? 'blur(12px) saturate(120%)' : 'none',
-          background: scrolled ? 'rgba(17,17,17,0.55)' : 'transparent',
-          borderBottom: scrolled ? '1px solid rgba(245,245,240,0.06)' : '1px solid transparent',
-          transition: 'padding 700ms ease-out, background 700ms ease-out, border-bottom-color 700ms ease-out',
-        }}
+        className="fixed top-0 left-0 right-0 z-50 noxxe-nav"
       >
         <div className="flex items-center justify-between max-w-[1600px] mx-auto">
           {/* ── Logo ── */}

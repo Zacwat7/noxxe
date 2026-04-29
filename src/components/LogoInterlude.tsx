@@ -181,25 +181,38 @@ export default function LogoInterlude() {
               matches the section bg (#0d0d0d) closely enough to be invisible —
               so we can drop mix-blend-mode entirely and let the GPU composite
               a normal opaque layer instead of a blended one. */}
-          <video
-            ref={videoRef}
-            className="w-full"
-            src="/videos/logo-paint.mp4"
-            muted
-            playsInline
-            preload="metadata"
-            disablePictureInPicture
-            {...({ 'webkit-playsinline': 'true' } as any)}
+          {/* CSS filter wrapper — moving the filter off the video element and onto
+              an isolated container prevents the filter from re-triggering a
+              software-compositing pass every time the video decodes a new frame.
+              contain:layout paint creates a stacking-context boundary that limits
+              the filter's GPU cost to this subtree only. */}
+          <div
             style={{
-              display: 'block',
               position: 'relative',
-              filter: 'invert(1) contrast(3.5) brightness(0.78)',
-              // GPU layer promotion for smooth playback
+              width: '100%',
+              filter: 'invert(1) contrast(2.8) brightness(0.78)',
+              contain: 'layout paint',
               transform: 'translate3d(0,0,0)',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
             }}
-          />
+          >
+            <video
+              ref={videoRef}
+              className="w-full"
+              src="/videos/logo-paint.mp4"
+              muted
+              playsInline
+              preload="metadata"
+              disablePictureInPicture
+              {...({ 'webkit-playsinline': 'true' } as any)}
+              style={{
+                display: 'block',
+                position: 'relative',
+                transform: 'translate3d(0,0,0)',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              }}
+            />
+          </div>
 
           {/* Edge vignette — four narrow fades erase the video's hard
               rectangular boundary; the exact bg colour makes it seamless */}

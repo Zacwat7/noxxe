@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -277,7 +277,10 @@ function MetaLine({
 }
 
 // ─── Slide ────────────────────────────────────────────────────────────────────
-function Slide({
+// memo: when activeIndex changes, only the two Slides whose `distance` prop
+// changed (the old active and the new active) re-render — the other two stay
+// frozen. Without memo, all 4 re-render on every horizontal scroll step.
+const Slide = memo(function Slide({
   p,
   index,
   distance,
@@ -499,7 +502,7 @@ function Slide({
       </div>
     </div>
   );
-}
+});
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function Modal({ p, onClose }: { p: Project | null; onClose: () => void }) {
@@ -609,6 +612,11 @@ export default function Portfolio() {
   // before the page scrolls past the first/last card.
   const boundaryEscapeRef = useRef(false);
   const boundaryEscapeTimer = useRef<number | null>(null);
+  // Cached "section is at viewport top" flag — updated by a passive scroll
+  // listener so onWheel never calls getBoundingClientRect() in the hot path
+  // (getBoundingClientRect forces a synchronous layout flush at 120+/sec on
+  // trackpads, costing ~1ms per event and saturating the frame budget alone).
+  const sectionAtTopRef = useRef(false);
 
   useEffect(() => { activeIndexRef.current = activeIndex; }, [activeIndex]);
 
@@ -655,6 +663,17 @@ export default function Portfolio() {
       setHasScrolled(true);
     };
 
+    // Passive scroll listener that caches whether the section is at the viewport
+    // top. This moves getBoundingClientRect() out of the onWheel hot path — the
+    // wheel handler fires 120+ times/sec on a trackpad, and each BcR call forces
+    // a synchronous layout flush costing ~1ms. The scroll listener fires much
+    // less frequently and runs passively, off the critical input path.
+    const onPageScroll = () => {
+      sectionAtTopRef.current = section.getBoundingClientRect().top <= 80;
+    };
+    window.addEventListener('scroll', onPageScroll, { passive: true });
+    onPageScroll(); // initialise immediately so the ref is correct before first wheel
+
     // One-card-at-a-time wheel scroll — attached to the SECTION so the full
     // section area intercepts, not just the track div. Previously only the
     // track caught events; hovering over the header/progress bar passed events
@@ -663,28 +682,10 @@ export default function Portfolio() {
       const delta = e.deltaY + e.deltaX;
       if (Math.abs(delta) < 5) return;
 
-      // Only capture once the section is truly at the viewport top.
-      // Previously 90px — too generous: horizontal scroll activated while the
-      // section was still arriving (89px off-screen), hijacking vertical scroll
-      // mid-animation and causing the "lag on entry" feel.
-      // 80px matches the nav bar height: section is considered "at top" once
+      // Use the cached ref — zero layout cost vs getBoundingClientRect() on every event.
+      // 80px threshold matches the nav bar height: section is "at top" once
       // its top edge is within one nav-bar height of the viewport.
-      // Also lock Lenis on first capture so it doesn't overshoot past the
-      // section while the user is scrolling cards.
-      const sectionTop = section.getBoundingClientRect().top;
-      if (sectionTop > 80) return;
-
-      // Freeze Lenis in place the moment horizontal scroll takes over so any
-      // ongoing smooth-scroll animation doesn't drift the page past the section.
-      // scrollTo(current, {immediate}) updates both DOM scroll and Lenis's
-      // internal targetScroll atomically — no stale-position scroll-back.
-      if (window.lenisInstance) {
-        const ly = window.lenisInstance as any;
-        // Only snap if Lenis is still animating (targetScroll ≠ scroll)
-        if (Math.abs((ly.targetScroll ?? ly.scroll ?? 0) - window.scrollY) > 2) {
-          window.lenisInstance.scrollTo(window.scrollY, { immediate: true });
-        }
-      }
+      if (!sectionAtTopRef.current) return;
 
       const dir = delta > 0 ? 1 : -1;
       const cur = activeIndexRef.current;
@@ -751,6 +752,7 @@ export default function Portfolio() {
       track.removeEventListener('scroll', onScroll);
       section.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onPageScroll);
     };
   }, []);
 

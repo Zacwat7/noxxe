@@ -100,17 +100,28 @@ body {
 
 /* Grain overlay — NO mix-blend-mode: it forces full-page compositor flattening
    every frame, killing will-change layer promotion for cursor + cards.
-   White grain at low opacity achieves the same texture on dark backgrounds. */
+   White grain at low opacity achieves the same texture on dark backgrounds.
+   background-image is populated by Grain.tsx via canvas — a pre-baked 256×256
+   noise PNG that the GPU tiles without any per-frame CPU rasterization.
+   (feTurbulence SVG filter on a fixed element rasterizes the full viewport every
+   scroll tick — ~8–15ms/frame alone. Canvas noise is uploaded once, then free.) */
 .grain {
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 60;
   opacity: 0.055;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 256px 256px;
+  background-repeat: repeat;
 }
 
-/* Custom cursor — no mix-blend-mode (forces full-page compositing every frame) */
+/* Custom cursor — no mix-blend-mode (forces full-page compositing every frame).
+   box-shadow REMOVED from all cursor elements that have will-change:transform.
+   Reason: box-shadow is a paint property. On a will-change:transform layer the
+   compositor hands transform to the GPU but box-shadow still triggers a CPU paint
+   call every RAF tick — 60 forced paints/sec, defeating the composited layer.
+   The ring border alone provides clear visibility; glow is an aesthetic trade-off
+   that costs ~60 paint operations/sec. */
 .cursor-ring,
 .cursor-dot {
   position: fixed;
@@ -125,9 +136,6 @@ body {
   width: 36px;
   height: 36px;
   border: 1.5px solid rgba(245, 245, 240, 0.9);
-  box-shadow:
-    0 0 10px 2px rgba(245,245,240,0.18),
-    0 0 28px 6px rgba(245,245,240,0.08);
   /* NO CSS transitions at all — every visual change is either instant or
      driven by JS lerp in the RAF tick. CSS transitions on a composited layer
      force style recalculations on every frame of the transition, causing stutter. */
@@ -136,41 +144,25 @@ body {
   width: 5px;
   height: 5px;
   background: #F5F5F0;
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.15),
-    0 0 8px 3px rgba(245,245,240,0.7),
-    0 0 18px 6px rgba(245,245,240,0.3);
+  /* Kept the 1px outline for subtle depth; removed the glow box-shadows */
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
 }
 .cursor-ring.is-active {
   /* width/height removed — JS scale(1.78) gives 36*1.78 ≈ 64px */
   background: rgba(245,245,240,0.05);
   border-color: rgba(245,245,240,0.95);
-  box-shadow:
-    0 0 0 1px rgba(245,245,240,0.2),
-    0 0 16px 4px rgba(245,245,240,0.4),
-    0 0 48px 10px rgba(245,245,240,0.22),
-    0 0 90px 24px rgba(245,245,240,0.1);
 }
 .cursor-ring.is-active.on-light {
-  box-shadow:
-    0 0 0 1px rgba(17,17,17,0.18),
-    0 0 16px 4px rgba(17,17,17,0.22),
-    0 0 48px 10px rgba(17,17,17,0.12);
+  /* no box-shadow */
 }
 .cursor-ring.is-text {
   /* width/height removed — JS scale(0.22) gives 36*0.22 ≈ 8px dot */
   background: #F5F5F0;
   border-color: transparent;
-  box-shadow:
-    0 0 8px 3px rgba(245,245,240,0.5),
-    0 0 20px 6px rgba(245,245,240,0.2);
 }
 /* When cursor is over light sections, invert its tone for legibility */
 .cursor-ring.on-light {
   border-color: rgba(17,17,17,0.85);
-  box-shadow:
-    0 0 10px 2px rgba(17,17,17,0.12),
-    0 0 28px 6px rgba(17,17,17,0.06);
 }
 .cursor-ring.on-light.is-active {
   background: rgba(17,17,17,0.05);
@@ -178,13 +170,11 @@ body {
 }
 .cursor-dot.on-light {
   background: #111;
-  box-shadow:
-    0 0 0 1px rgba(245,245,240,0.3),
-    0 0 8px 3px rgba(17,17,17,0.4),
-    0 0 18px 6px rgba(17,17,17,0.15);
+  box-shadow: 0 0 0 1px rgba(245,245,240,0.3);
 }
 
-/* Click ripple */
+/* Click ripple — box-shadow removed (same reason as cursor-ring: will-change:transform
+   + box-shadow = CPU paint on every animation frame of the ripple expansion) */
 .cursor-ripple {
   position: fixed;
   pointer-events: none;
@@ -195,24 +185,19 @@ body {
   margin-left: -18px;
   margin-top: -18px;
   border: 1.5px solid rgba(245, 245, 240, 0.75);
-  box-shadow:
-    0 0 12px 2px rgba(245, 245, 240, 0.2),
-    0 0 30px 6px rgba(245, 245, 240, 0.1);
   will-change: transform, opacity;
   animation: cursor-ripple-out 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .cursor-ripple.on-light {
   border-color: rgba(17, 17, 17, 0.6);
-  box-shadow:
-    0 0 12px 2px rgba(17, 17, 17, 0.15),
-    0 0 30px 6px rgba(17, 17, 17, 0.07);
 }
 @keyframes cursor-ripple-out {
   from { transform: scale(0.3); opacity: 0.9; }
   to   { transform: scale(2.8); opacity: 0; }
 }
 
-/* Right-click sparks */
+/* Right-click sparks — box-shadow removed (tiny 4px element, imperceptible glow,
+   but still forces a CPU paint call on every animation frame) */
 .cursor-spark {
   position: fixed;
   pointer-events: none;
@@ -223,13 +208,11 @@ body {
   margin-left: -2px;
   margin-top: -2px;
   background: rgba(245, 245, 240, 0.95);
-  box-shadow: 0 0 6px 2px rgba(245, 245, 240, 0.45);
   will-change: transform, opacity;
   animation: cursor-spark-fly 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .cursor-spark.on-light {
   background: rgba(17, 17, 17, 0.9);
-  box-shadow: 0 0 6px 2px rgba(17, 17, 17, 0.3);
 }
 @keyframes cursor-spark-fly {
   from { transform: translate(0, 0) scale(1.2); opacity: 1; }
@@ -254,16 +237,17 @@ body {
 }
 
 /* Portfolio video/image — zoom on card hover.
-   filter is NOT in the transition: animating filter on a will-change:transform
-   layer triggers a per-frame repaint. The brightness/saturation boost is applied
-   instantly (no transition) so it reads as a snap-pop rather than a slow repaint. */
+   filter intentionally removed from hover state: filter on a will-change:transform
+   layer forces a per-frame repaint of the entire composited layer, even with no
+   transition. A brightness overlay pseudo-element achieves a similar pop without
+   any paint cost. */
 .portfolio-media {
   transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
 .tilt-stage:hover .portfolio-media {
   transform: scale(1.05);
-  filter: brightness(1.08) saturate(1.1);
+  /* filter removed — was triggering per-frame repaint on will-change:transform layer */
 }
 
 /* Tilt card 3D */
@@ -345,9 +329,30 @@ body.scroll-locked {
   40%           { opacity: 1;   transform: scale(1.2); }
 }
 
+/* Nav appearance — all scroll-driven changes live here, toggled via
+   .nav-scrolled class added directly by JS (no React re-render on scroll).
+   padding is NOT in the transition — padding is a layout property; animating it
+   costs ~42 full layout recalculations at 60fps. The 8px difference is instant. */
+.noxxe-nav {
+  padding-top: 22px;
+  padding-bottom: 22px;
+  padding-left: 28px;
+  padding-right: 28px;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 700ms ease-out, border-bottom-color 700ms ease-out;
+}
+.noxxe-nav.nav-scrolled {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  backdrop-filter: blur(12px) saturate(120%);
+  background: rgba(17,17,17,0.55);
+  border-bottom-color: rgba(245,245,240,0.06);
+}
+
 /* Safe area insets for notched phones */
 @supports (padding: max(0px)) {
-  nav {
+  .noxxe-nav {
     padding-left: max(28px, env(safe-area-inset-left));
     padding-right: max(28px, env(safe-area-inset-right));
   }
