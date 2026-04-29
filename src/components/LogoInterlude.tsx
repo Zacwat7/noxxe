@@ -123,9 +123,12 @@ export default function LogoInterlude() {
       {/* ── Main content ────────────────────────────────────────────────── */}
       <div className="relative flex flex-col items-center justify-center" style={{ minHeight: '100svh', padding: '80px 0' }}>
 
-        {/* Outer reveal wrapper — drives scale/opacity/blur/clip on enter & exit.
-            Intentionally does NOT set will-change so it doesn't create an
-            isolated compositing context that would break mix-blend-mode. */}
+        {/* Outer reveal wrapper — opacity + transform + clip-path only.
+            filter intentionally absent: even filter:blur(0px) creates an
+            isolated compositing stacking context, which forces per-frame
+            software compositing of the video's mix-blend-mode:screen — the
+            single biggest source of lag on this section. Removing filter lets
+            the compositor handle the blend at the GPU layer directly. */}
         <div
           style={{
             position: 'relative',
@@ -137,23 +140,16 @@ export default function LogoInterlude() {
               : leaving
                 ? 'scale(0.95) translateY(20px)'
                 : 'scale(0.92) translateY(-28px)',
-            filter: revealed
-              ? 'blur(0px)'
-              : leaving
-                ? 'blur(14px)'
-                : 'blur(40px)',
             clipPath,
             transition: revealed
               ? [
                   'opacity 2000ms cubic-bezier(0.16,1,0.3,1) 80ms',
                   'transform 2400ms cubic-bezier(0.16,1,0.3,1) 80ms',
-                  'filter 2200ms cubic-bezier(0.16,1,0.3,1) 80ms',
                   clipTransition,
                 ].join(', ')
               : [
                   'opacity 900ms cubic-bezier(0.77,0,0.175,1)',
                   'transform 900ms cubic-bezier(0.77,0,0.175,1)',
-                  'filter 900ms ease',
                   clipTransition,
                 ].join(', '),
           }}

@@ -644,6 +644,14 @@ export default function Portfolio() {
       const delta = e.deltaY + e.deltaX;
       if (Math.abs(delta) < 5) return;
 
+      // Only capture when the section is properly positioned at the viewport
+      // top (≤ nav height + small buffer). If the section is still scrolling
+      // into view from below, pass the event to Lenis so vertical scroll
+      // continues uninterrupted — prevents the track jumping to card 2 while
+      // the user is still scrolling down to reach the section.
+      const sectionTop = section.getBoundingClientRect().top;
+      if (sectionTop > 90) return;
+
       const dir = delta > 0 ? 1 : -1;
       const cur = activeIndexRef.current;
 

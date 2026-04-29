@@ -26,19 +26,24 @@ export function NavTransitionProvider({ children }: { children: ReactNode }) {
     setPhaseSync('in');
     pendingId.current = targetId;
 
-    // After curtain covers the screen, snap-scroll then reveal
+    // After curtain covers the screen, snap-scroll then reveal.
+    // Use lenis.scrollTo() directly — do NOT stop/start Lenis.
+    // scrollIntoView() changes window.scrollY but Lenis's internal targetScroll
+    // stays at the old position; when lenis.start() fires it scrolls BACK.
+    // lenis.scrollTo(el, { immediate:true }) updates both the DOM scroll and
+    // Lenis's internal state atomically, so there's no fight on resume.
     window.setTimeout(() => {
       const el = document.getElementById(pendingId.current!);
       if (el) {
-        // Stop Lenis so the instant scroll doesn't fight it
-        window.lenisInstance?.stop();
-        el.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+        if (window.lenisInstance) {
+          window.lenisInstance.scrollTo(el, { immediate: true, offset: -80 });
+        } else {
+          const top = window.scrollY + el.getBoundingClientRect().top - 80;
+          window.scrollTo(0, top);
+        }
       }
       setPhaseSync('out');
-      window.setTimeout(() => {
-        setPhaseSync('idle');
-        window.lenisInstance?.start();
-      }, 500);
+      window.setTimeout(() => setPhaseSync('idle'), 500);
     }, 420);
   }, []); // no deps — phaseRef is always current
 
