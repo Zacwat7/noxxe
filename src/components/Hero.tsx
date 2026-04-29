@@ -113,25 +113,30 @@ export default function Hero() {
           // may have cached incorrect positions during the 240% pinned scroll.
           ScrollTrigger.refresh();
         },
+        // Snap to final frame when user scrolls past the hero faster than the
+        // scrub (1.8s lag) can catch up. Without this the video may stay on an
+        // intermediate frame when the pin releases.
+        onLeave: () => {
+          if (video.duration && isFinite(video.duration)) {
+            video.currentTime = video.duration;
+          }
+        },
+        // Snap to first frame if user scrolls back above the hero.
+        onLeaveBack: () => {
+          video.currentTime = 0;
+        },
       } as any);
 
       ScrollTrigger.refresh();
     };
 
-    const onReady = () => buildTrigger();
-
-    if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
-      onReady();
-    } else {
-      video.addEventListener('loadedmetadata', onReady, { once: true });
-    }
-
-    // Prime the decoder: play briefly at 4× so the browser pre-decodes more
-    // keyframes per wall-clock ms. 400ms window gives a deeper decode buffer
-    // before the first ScrollTrigger seek.
+    // Prime the decoder AFTER we have duration and the trigger is built.
+    // Calling prime() before metadata is ready creates a race: the 400ms
+    // reset timer fires while buildTrigger() / the user's first scroll are
+    // also touching currentTime, causing the video to jump back to frame 0.
     const prime = () => {
       if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
-      video.currentTime = 0; // Guarantee prime starts from frame 0
+      video.currentTime = 0;
       video.playbackRate = 4;
       const p = video.play();
       if (p && p.catch) p.catch(() => {});
@@ -141,7 +146,17 @@ export default function Hero() {
         video.currentTime = 0;
       }, 400);
     };
-    prime();
+
+    const onReady = () => {
+      buildTrigger();
+      prime(); // safe now — duration is known and trigger is set up
+    };
+
+    if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
+      onReady();
+    } else {
+      video.addEventListener('loadedmetadata', onReady, { once: true });
+    }
 
     return () => {
       video.removeEventListener('loadedmetadata', onReady);

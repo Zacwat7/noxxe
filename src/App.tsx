@@ -24,18 +24,11 @@ export default function App() {
   useLenis();
 
   useEffect(() => {
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
-    
-    // Don't scroll to top if navigating to contact form or other hash
+    // scrollRestoration is set synchronously in main.tsx before React renders.
+    // This effect just ensures Lenis (which initialises on the first RAF tick)
+    // is also snapped to 0 so it agrees with the native scroll position.
     if (window.location.hash !== '#contact-form') {
-      // Use Lenis if available, otherwise fall back to native scroll
-      if (window.lenisInstance) {
-        window.lenisInstance.scrollTo(0, { immediate: true });
-      } else {
-        window.scrollTo(0, 0);
-      }
+      window.lenisInstance?.scrollTo(0, { immediate: true });
     }
   }, []);
 
